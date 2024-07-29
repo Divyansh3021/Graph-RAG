@@ -1,0 +1,1 @@
+{"directed": false, "multigraph": false, "graph": {}, "nodes": [{"id": "Paris"}, {"id": "France"}], "links": [{"relationship": "capital of", "source": "Paris", "target": "France"}]}

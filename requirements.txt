@@ -1,0 +1,7 @@
+langchain 
+llama-index 
+networkx 
+pyvis 
+transformers 
+torch 
+faiss-cpu
