@@ -2,6 +2,8 @@ import os
 from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.pydantic_v1 import BaseModel, Field
+from typing import List, Dict
+from llama_index.llms.langchain import LangChainLLM
 
 load_dotenv()
 
@@ -12,34 +14,59 @@ llm = ChatGoogleGenerativeAI(
     timeout=None,
     max_retries=2,
 )
+from typing import List, Tuple
+from langchain_core.pydantic_v1 import BaseModel, Field
+from langchain import OpenAI
 
-class Graph(BaseModel):
-    """Representation of the graph as an adjacency matrix."""
-    matrix: str = Field(description="The created adjacency matrix")
+# Define the entity and relation data models
+class Entity(BaseModel):
+    """Entity extracted from the text."""
+    name: str = Field(description="The name of the entity")
 
-structured_llm = llm.with_structured_output(Graph)
+class Relation(BaseModel):
+    """Relation between entities extracted from the text."""
+    entity1: str = Field(description="The first entity in the relationship")
+    relationship: str = Field(description="The type of relationship")
+    entity2: str = Field(description="The second entity in the relationship")
+
+class ExtractedData(BaseModel):
+    """Structured output containing entities and relations."""
+    entities: List[Entity] = Field(description="List of entities")
+    relations: List[Relation] = Field(description="List of relations")
 
 
-prompt = """
-You are an expert system designed to extract relationships between entities in text and represent them as an adjacency matrix. Your task is to:
+# Configure the LLM to produce structured output
+structured_llm = llm.with_structured_output(ExtractedData)
 
-1. Identify key entities (nodes) in the given text.
-2. Determine relationships between these entities.
-3. Create an adjacency matrix where:
-   - Rows and columns represent the entities (nodes).
-   - Matrix elements represent the relationships between entities.
-   - Use 0 if there's no direct relationship.
-   - Use a word or short phrase to describe the relationship if one exists.
+# Define the extraction prompts
+extraction_prompt = """
+Extract entities and relationships from the following text. Return the entities and relationships in a structured format.
 
-Format your response as a string representing the adjacency matrix, with entities as labels and relationships in the cells. Each row should be on a new line, and cells should be separated by tabs.
+Text: {text}
 
-Now, analyze the following text and provide the adjacency matrix:
-
-Content:
-Dragon Ball (Japanese: ドラゴンボール, Hepburn: Doragon Bōru) is a Japanese media franchise created by Akira Toriyama in 1984. The initial manga, written and illustrated by Toriyama, was serialized in Weekly Shōnen Jump from 1984 to 1995, with the 519 individual chapters collected in 42 tankōbon volumes by its publisher Shueisha. Dragon Ball was originally inspired by the classical 16th-century Chinese novel Journey to the West, combined with elements of Hong Kong martial arts films. Dragon Ball characters also use a variety of East Asian martial arts styles, including karate[1][2][3] and Wing Chun (kung fu).[2][3][4] The series follows the adventures of protagonist Son Goku from his childhood through adulthood as he trains in martial arts. He spends his childhood far from civilization until he meets a teen girl named Bulma, who encourages him to join her quest in exploring the world in search of the seven orbs known as the Dragon Balls, which summon a wish-granting dragon when gathered. Along his journey, Goku makes several other friends, becomes a family man, discovers his alien heritage, and battles a wide variety of villains, many of whom also seek the Dragon Balls.
-
-Remember to use actual entity names and relationship descriptions in your matrix, not just letters and numbers.
+Entities and Relationships:
 """
 
-res = llm.invoke(prompt)
-print(res)
+# Define the function to invoke the structured LLM
+def extract_entities_and_relations(text, structured_llm):
+    prompt_text = extraction_prompt.format(text=text)
+    response = structured_llm.invoke(prompt_text)
+    return response
+
+# Example text content
+text_content = """
+Alice is a software engineer at Google. She works with Bob, who is a data scientist. They both live in San Francisco.
+"""
+
+# Extract entities and relations
+extracted_data = extract_entities_and_relations(text_content, llm)
+
+
+# Print the extracted entities and relations
+# print("Entities:")
+# for entity in extracted_data.entities:
+#     print(entity.name)
+
+# print("\nRelations:")
+# for relation in extracted_data.relations:
+#     print(f"{relation.entity1} {relation.relationship} {relation.entity2}")
