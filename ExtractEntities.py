@@ -29,7 +29,7 @@ output_parser = StructuredOutputParser.from_response_schemas(response_schemas=re
 def get_nodes_edge(code):
 
     prompt = """
-        Extract the details from the following code and format them as a JSON object. Each class should be a node with its methods as nodes connected by edges. Each method should have nodes for its attributes and return values. Each edge should describe the relationship between nodes.
+        Extract the details from the following code according to the specified code language and format them as a JSON object. Each class should be a node with its methods as nodes connected by edges. Each method should have nodes for its attributes and return values. Each edge should describe the relationship between nodes.
 
         For Example:
 
@@ -92,7 +92,7 @@ def get_nodes_edge(code):
 
         Given Code:
 
-
+        Code Language: Typescript
         """
     
     prompt += "```\n" + code + "\n```"
@@ -101,59 +101,94 @@ def get_nodes_edge(code):
     return output_parser.parse(new_res.content)
 
 code = """
-def validate_environment(cls, values: Dict) -> Dict:
-        '''Validates params and passes them to google-generativeai package.'''
-        if values.get("credentials"):
-            genai.configure(
-                credentials=values.get("credentials"),
-                transport=values.get("transport"),
-                client_options=values.get("client_options"),
-            )
-        else:
-            google_api_key = get_from_dict_or_env(
-                values, "google_api_key", "GOOGLE_API_KEY"
-            )
-            if isinstance(google_api_key, SecretStr):
-                google_api_key = google_api_key.get_secret_value()
-            genai.configure(
-                api_key=google_api_key,
-                transport=values.get("transport"),
-                client_options=values.get("client_options"),
-            )
 
-        model_name = values["model"]
+import prisma from "@calcom/prisma";
 
-        safety_settings = values["safety_settings"]
+import type { UserList } from "../types/user";
 
-        if safety_settings and (
-            not GoogleModelFamily(model_name) == GoogleModelFamily.GEMINI
-        ):
-            raise ValueError("Safety settings are only supported for Gemini models")
+/*
+ * Extracts usernames (@Example) and emails (hi@example.com) from a string
+ */
+export const extractUsers = async (text: string) => {
+  const usernames = text
+    .match(/(?<![a-zA-Z0-9_.])@[a-zA-Z0-9_]+/g)
+    ?.map((username) => username.slice(1).toLowerCase());
+  const emails = text
+    .match(/[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+/g)
+    ?.map((email) => email.toLowerCase());
 
-        if GoogleModelFamily(model_name) == GoogleModelFamily.GEMINI:
-            values["client"] = genai.GenerativeModel(
-                model_name=model_name, safety_settings=safety_settings
-            )
-        else:
-            values["client"] = genai
+  const dbUsersFromUsernames = usernames
+    ? await prisma.user.findMany({
+        select: {
+          id: true,
+          username: true,
+          email: true,
+        },
+        where: {
+          username: {
+            in: usernames,
+          },
+        },
+      })
+    : [];
 
-        if values["temperature"] is not None and not 0 <= values["temperature"] <= 1:
-            raise ValueError("temperature must be in the range [0.0, 1.0]")
+  const usersFromUsernames = usernames
+    ? usernames.map((username) => {
+        const user = dbUsersFromUsernames.find((u) => u.username === username);
+        return user
+          ? {
+              username,
+              id: user.id,
+              email: user.email,
+              type: "fromUsername",
+            }
+          : {
+              username,
+              id: null,
+              email: null,
+              type: "fromUsername",
+            };
+      })
+    : [];
 
-        if values["top_p"] is not None and not 0 <= values["top_p"] <= 1:
-            raise ValueError("top_p must be in the range [0.0, 1.0]")
+  const dbUsersFromEmails = emails
+    ? await prisma.user.findMany({
+        select: {
+          id: true,
+          email: true,
+          username: true,
+        },
+        where: {
+          email: {
+            in: emails,
+          },
+        },
+      })
+    : [];
 
-        if values["top_k"] is not None and values["top_k"] <= 0:
-            raise ValueError("top_k must be positive")
+  const usersFromEmails = emails
+    ? emails.map((email) => {
+        const user = dbUsersFromEmails.find((u) => u.email === email);
+        return user
+          ? {
+              email,
+              id: user.id,
+              username: user.username,
+              type: "fromEmail",
+            }
+          : {
+              email,
+              id: null,
+              username: null,
+              type: "fromEmail",
+            };
+      })
+    : [];
 
-        if values["max_output_tokens"] is not None and values["max_output_tokens"] <= 0:
-            raise ValueError("max_output_tokens must be greater than zero")
+  return [...usersFromUsernames, ...usersFromEmails] as UserList;
+};
 
-        if values["timeout"] is not None and values["timeout"] <= 0:
-            raise ValueError("timeout must be greater than zero")
-
-        return values
 """
 node_edge = get_nodes_edge(code=code)
 
-print(node_edge)
+print(node_edge+"\n\n\n\n")

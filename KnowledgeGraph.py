@@ -1,20 +1,23 @@
 import networkx as nx
 from pyvis.network import Network
 import json
+from ExtractEntities import node_edge
 
 class KnowledgeGraph:
     def __init__(self):
-        self.graph = nx.Graph()
+        self.graph = nx.DiGraph()  # Changed to DiGraph for directed graph
 
     def add_entity(self, entity):
         self.graph.add_node(entity)
 
     def add_relationship(self, entity1, entity2, relationship):
-        self.graph.add_edge(entity1, entity2, relationship=relationship)
+        self.graph.add_edge(entity1, entity2, label=relationship)  # Store label instead of relationship
 
     def visualize(self, filename='graph.html'):
-        net = Network(notebook=False)
+        net = Network(notebook=False, directed=True)  # Set directed=True
         net.from_nx(self.graph)
+        for edge in net.edges:
+            edge['label'] = edge['label']  # Ensure label is displayed
         net.show(filename, notebook=False)
 
     def save(self, filename='knowledge_graph.json'):
@@ -25,11 +28,26 @@ class KnowledgeGraph:
     def load(self, filename='knowledge_graph.json'):
         with open(filename, 'r') as f:
             data = json.load(f)
-        self.graph = nx.node_link_graph(data)
+        self.graph = nx.node_link_graph(data, directed=True)  # Ensure loaded graph is directed
+
+    def load_from_dict(self, data):
+        # Clear existing graph
+        self.graph.clear()
+        
+        # Add nodes
+        for node in data['nodes']:
+            self.add_entity(node['label'])
+        
+        # Add edges
+        for edge in data['edges']:
+            source = next(node['label'] for node in data['nodes'] if node['id'] == edge['source'])
+            target = next(node['label'] for node in data['nodes'] if node['id'] == edge['target'])
+            self.add_relationship(source, target, edge['label'])
+
 
 # Usage
 kg = KnowledgeGraph()
-kg.add_entity("Paris")
-kg.add_entity("France")
-kg.add_relationship("Paris", "France", "capital of")
+
+kg.load_from_dict(node_edge)
+kg.visualize()
 kg.save()
