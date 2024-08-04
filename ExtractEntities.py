@@ -98,97 +98,49 @@ def get_nodes_edge(code):
     prompt += "```\n" + code + "\n```"
 
     new_res = llm.invoke(prompt)
-    return output_parser.parse(new_res.content)
+    try:
+        res_dict = output_parser.parse(new_res.content)
+    
+    except AttributeError or Exception:
+        print("Exception occured!!")
+        res = llm.invoke("""
+            this JSON data is generating error while parsing, format it according as this example:
 
-code = """
-
-import prisma from "@calcom/prisma";
-
-import type { UserList } from "../types/user";
-
-/*
- * Extracts usernames (@Example) and emails (hi@example.com) from a string
- */
-export const extractUsers = async (text: string) => {
-  const usernames = text
-    .match(/(?<![a-zA-Z0-9_.])@[a-zA-Z0-9_]+/g)
-    ?.map((username) => username.slice(1).toLowerCase());
-  const emails = text
-    .match(/[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+/g)
-    ?.map((email) => email.toLowerCase());
-
-  const dbUsersFromUsernames = usernames
-    ? await prisma.user.findMany({
-        select: {
-          id: true,
-          username: true,
-          email: true,
-        },
-        where: {
-          username: {
-            in: usernames,
-          },
-        },
-      })
-    : [];
-
-  const usersFromUsernames = usernames
-    ? usernames.map((username) => {
-        const user = dbUsersFromUsernames.find((u) => u.username === username);
-        return user
-          ? {
-              username,
-              id: user.id,
-              email: user.email,
-              type: "fromUsername",
+            Example:       
+            {
+            "nodes": [
+                {"id": "1", "label": "GraphEmbedding"},
+                {"id": "2", "label": "__init__"},
+                {"id": "3", "label": "model_name"},
+                {"id": "4", "label": "model"},
+                {"id": "5", "label": "embed_node"},
+                {"id": "6", "label": "node"},
+                {"id": "7", "label": "model.encode(node)"},
+                {"id": "8", "label": "embed_graph"},
+                {"id": "9", "label": "graph"},
+                {"id": "10", "label": "embeddings"},
+                {"id": "11", "label": "graph.nodes()"},
+                {"id": "12", "label": "embed_node(node)"}
+            ],
+            "edges": [
+                {"source": "1", "target": "2", "label": "has method"},
+                {"source": "2", "target": "3", "label": "has parameter"},
+                {"source": "2", "target": "4", "label": "has attribute"},
+                {"source": "1", "target": "5", "label": "has method"},
+                {"source": "5", "target": "6", "label": "has parameter"},
+                {"source": "5", "target": "7", "label": "returns"},
+                {"source": "1", "target": "8", "label": "has method"},
+                {"source": "8", "target": "9", "label": "has parameter"},
+                {"source": "8", "target": "10", "label": "has attribute"},
+                {"source": "8", "target": "11", "label": "has attribute"},
+                {"source": "8", "target": "12", "label": "returns"}
+            ]
             }
-          : {
-              username,
-              id: null,
-              email: null,
-              type: "fromUsername",
-            };
-      })
-    : [];
+                              
+            JSON data:
+            
 
-  const dbUsersFromEmails = emails
-    ? await prisma.user.findMany({
-        select: {
-          id: true,
-          email: true,
-          username: true,
-        },
-        where: {
-          email: {
-            in: emails,
-          },
-        },
-      })
-    : [];
-
-  const usersFromEmails = emails
-    ? emails.map((email) => {
-        const user = dbUsersFromEmails.find((u) => u.email === email);
-        return user
-          ? {
-              email,
-              id: user.id,
-              username: user.username,
-              type: "fromEmail",
-            }
-          : {
-              email,
-              id: null,
-              username: null,
-              type: "fromEmail",
-            };
-      })
-    : [];
-
-  return [...usersFromUsernames, ...usersFromEmails] as UserList;
-};
-
-"""
-node_edge = get_nodes_edge(code=code)
-
-print(node_edge+"\n\n\n\n")
+        """+new_res.content)
+        print(res)
+        res_dict = output_parser.parse(res)
+    return res_dict

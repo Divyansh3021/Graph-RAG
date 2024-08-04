@@ -1,7 +1,7 @@
 import networkx as nx
 from pyvis.network import Network
 import json
-from ExtractEntities import node_edge
+
 
 class KnowledgeGraph:
     def __init__(self):
@@ -31,8 +31,6 @@ class KnowledgeGraph:
         self.graph = nx.node_link_graph(data, directed=True)  # Ensure loaded graph is directed
 
     def load_from_dict(self, data):
-        # Clear existing graph
-        self.graph.clear()
         
         # Add nodes
         for node in data['nodes']:
@@ -44,10 +42,3 @@ class KnowledgeGraph:
             target = next(node['label'] for node in data['nodes'] if node['id'] == edge['target'])
             self.add_relationship(source, target, edge['label'])
 
-
-# Usage
-kg = KnowledgeGraph()
-
-kg.load_from_dict(node_edge)
-kg.visualize()
-kg.save()
