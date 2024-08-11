@@ -1,6 +1,5 @@
 import faiss
-from GraphEmedding import node_embeddings, GraphEmbedding
-from KnowledgeGraph import kg
+from GraphEmedding import GraphEmbedding
 import numpy as np
 
 class GraphRetriever:
@@ -24,6 +23,9 @@ class GraphRetriever:
         
         retrieved_info = []
         for node in retrieved_nodes:
+            # Get node attributes
+            node_data = self.kg.graph.nodes[node]
+            
             # Get outgoing edges
             outgoing = list(self.kg.graph.out_edges(node, data=True))
             outgoing_info = [f"{node} --({edge[2]['label']})-> {edge[1]}" for edge in outgoing]
@@ -34,25 +36,12 @@ class GraphRetriever:
             
             retrieved_info.append({
                 'node': node,
+                'file_name': node_data.get('file_name'),
+                'line_numbers': node_data.get('line_numbers'),
                 'outgoing_edges': outgoing_info,
                 'incoming_edges': incoming_info
             })
         
         return retrieved_info
 
-
-ge = GraphEmbedding()
-node_embeddings = {node: ge.embed_node(node) for node in kg.graph.nodes()}
-
-retriever = GraphRetriever(kg, node_embeddings)
-result = retriever.retrieve("What is AgentExecutor?", k=10)  # Retrieve info for top 2 most relevant nodes
-
-for info in result:
-    print(f"Node: {info['node']}")
-    print("Outgoing edges:")
-    for edge in info['outgoing_edges']:
-        print(f"  {edge}")
-    print("Incoming edges:")
-    for edge in info['incoming_edges']:
-        print(f"  {edge}")
-    print()
+# Usage example:
